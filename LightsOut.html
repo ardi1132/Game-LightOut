@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lights Out Puzzle</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #2c3e50;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        .game-container {
+            margin: 20px;
+            position: relative;
+        }
+
+        .grid {
+            display: grid;
+            grid-gap: 5px;
+            background-color: #34495e;
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        .cell {
+            width: 50px;
+            height: 50px;
+            background-color: #2c3e50;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .cell.on {
+            background-color: #f1c40f;
+            box-shadow: 0 0 15px #f1c40f;
+        }
+
+        .stats {
+            margin: 20px;
+            text-align: center;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #27ae60;
+            color: white;
+        }
+
+        button:hover {
+            background-color: #219a52;
+        }
+
+        .difficulty {
+            margin: 20px;
+        }
+
+        #message {
+            height: 30px;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>LIGHTS OUT</h1>
+    <div class="difficulty">
+        <button onclick="newGame(5)">5x5 (Mudah)</button>
+        <button onclick="newGame(7)">7x7 (Sedang)</button>
+        <button onclick="newGame(9)">9x9 (Sulit)</button>
+    </div>
+    <div class="game-container">
+        <div class="grid" id="grid"></div>
+    </div>
+    <div class="stats">
+        <div>Langkah: <span id="moves">0</span></div>
+        <div>Waktu: <span id="time">0</span> detik</div>
+        <div id="message"></div>
+        <button onclick="hint()">Petunjuk (3x)</button>
+        <button onclick="newGame(currentSize)">Ulangi</button>
+    </div>
+
+    <script>
+        let grid = [];
+        let moves = 0;
+        let timer = 0;
+        let timerInterval;
+        let currentSize = 5;
+        let hintsLeft = 3;
+
+        function createGrid(size) {
+            const gridElement = document.getElementById('grid');
+            gridElement.style.gridTemplateColumns = `repeat(${size}, 50px)`;
+            gridElement.innerHTML = '';
+            
+            grid = Array(size).fill().map(() => 
+                Array(size).fill().map(() => Math.random() > 0.5)
+            );
+
+            for(let i = 0; i < size; i++) {
+                for(let j = 0; j < size; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = `cell ${grid[i][j] ? 'on' : ''}`;
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+                    cell.addEventListener('click', () => toggleCell(i, j));
+                    gridElement.appendChild(cell);
+                }
+            }
+        }
+
+        function toggleCell(row, col) {
+            const size = grid.length;
+            for(let i = -1; i <= 1; i++) {
+                for(let j = -1; j <= 1; j++) {
+                    if(Math.abs(i) + Math.abs(j) !== 1) continue; // Hanya tetangga langsung
+                    const newRow = row + i;
+                    const newCol = col + j;
+                    if(newRow >= 0 && newRow < size && newCol >= 0 && newCol < size) {
+                        grid[newRow][newCol] = !grid[newRow][newCol];
+                    }
+                }
+            }
+            updateGrid();
+            moves++;
+            document.getElementById('moves').textContent = moves;
+            checkWin();
+        }
+
+        function updateGrid() {
+            const cells = document.getElementsByClassName('cell');
+            for(let i = 0; i < cells.length; i++) {
+                const row = parseInt(cells[i].dataset.row);
+                const col = parseInt(cells[i].dataset.col);
+                cells[i].className = `cell ${grid[row][col] ? 'on' : ''}`;
+            }
+        }
+
+        function checkWin() {
+            const allOff = grid.every(row => row.every(cell => !cell));
+            if(allOff) {
+                clearInterval(timerInterval);
+                document.getElementById('message').textContent = 
+                    `Menang dalam ${moves} langkah dan ${timer} detik!`;
+            }
+        }
+
+        function newGame(size) {
+            currentSize = size;
+            clearInterval(timerInterval);
+            moves = 0;
+            timer = 0;
+            hintsLeft = 3;
+            document.getElementById('moves').textContent = '0';
+            document.getElementById('time').textContent = '0';
+            document.getElementById('message').textContent = '';
+            createGrid(size);
+            timerInterval = setInterval(() => {
+                timer++;
+                document.getElementById('time').textContent = timer;
+            }, 1000);
+        }
+
+        function hint() {
+            if(hintsLeft > 0) {
+                hintsLeft--;
+                const size = grid.length;
+                const row = Math.floor(Math.random() * size);
+                const col = Math.floor(Math.random() * size);
+                document.querySelector(`[data-row="${row}"][data-col="${col}"]`)
+                    .style.transform = 'scale(1.2)';
+                setTimeout(() => {
+                    document.querySelector(`[data-row="${row}"][data-col="${col}"]`)
+                        .style.transform = 'scale(1)';
+                }, 1000);
+                document.getElementById('message').textContent = 
+                    `Petunjuk tersisa: ${hintsLeft}`;
+            }
+        }
+
+        // Mulai game dengan ukuran 5x5
+        newGame(5);
+    </script>
+</body>
+</html>
