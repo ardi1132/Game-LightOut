@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Crisis</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            text-align: center;
+            padding: 20px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+        }
+
+        #equation {
+            font-size: 3em;
+            margin: 20px;
+            text-shadow: 0 0 10px #00ff00;
+        }
+
+        #input {
+            font-size: 2em;
+            width: 200px;
+            text-align: center;
+            margin: 20px;
+            background: #333;
+            color: #00ff00;
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+        }
+
+        #stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin: 20px;
+        }
+
+        .stat-box {
+            background: #222;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #00ff00;
+        }
+
+        #timer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            font-size: 1.5em;
+            color: #ff0000;
+        }
+
+        #gameOver {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #000;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            border: 3px solid #ff0000;
+        }
+
+        .powerup {
+            position: absolute;
+            animation: float 3s infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+    </style>
+</head>
+<body>
+    <div id="timer">⏳ 60</div>
+    <div id="gameContainer">
+        <h1>MATH CRISIS</h1>
+        <div id="equation"></div>
+        <input type="number" id="input" autofocus>
+        <div id="stats">
+            <div class="stat-box">Skor: <span id="score">0</span></div>
+            <div class="stat-box">Level: <span id="level">1</span></div>
+            <div class="stat-box">Kombo: <span id="combo">1x</span></div>
+        </div>
+    </div>
+
+    <div id="gameOver">
+        <h2>GAME OVER!</h2>
+        <p>Skor Akhir: <span id="finalScore">0</span></p>
+        <button onclick="startGame()">Main Lagi</button>
+    </div>
+
+    <script>
+        let score = 0;
+        let timeLeft = 60;
+        let level = 1;
+        let combo = 1;
+        let gameInterval;
+        let powerups = [];
+        let difficultyFactors = {
+            numberRange: [1, 10],
+            operations: ['+', '-'],
+            equationLength: 2
+        };
+
+        const operations = {
+            '+': (a, b) => a + b,
+            '-': (a, b) => a - b,
+            '×': (a, b) => a * b,
+            '÷': (a, b) => a / b,
+            '^': (a, b) => Math.pow(a, b)
+        };
+
+        function generateEquation() {
+            const numCount = difficultyFactors.equationLength;
+            let equation = '';
+            let result = 0;
+            
+            for(let i = 0; i < numCount; i++) {
+                const num = randomNumber();
+                const op = difficultyFactors.operations[
+                    Math.floor(Math.random() * difficultyFactors.operations.length)
+                ];
+                
+                if(i === 0) {
+                    result = num;
+                    equation += num;
+                } else {
+                    equation += ` ${op} ${num}`;
+                    result = operations[op](result, num);
+                }
+            }
+            
+            // Handle division decimals
+            if(equation.includes('÷') && !Number.isInteger(result)) {
+                return generateEquation();
+            }
+            
+            return { equation, result: Math.round(result * 100) / 100 };
+        }
+
+        function randomNumber() {
+            const [min, max] = difficultyFactors.numberRange;
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function updateDifficulty() {
+            level = Math.floor(score / 1000) + 1;
+            document.getElementById('level').textContent = level;
+            
+            difficultyFactors = {
+                numberRange: [1 + level*2, 10 + level*5],
+                operations: level > 3 ? ['+', '-', '×'] : 
+                          level > 5 ? ['+', '-', '×', '÷'] : 
+                          level > 7 ? ['+', '-', '×', '÷', '^'] : ['+', '-'],
+                equationLength: level > 4 ? 3 : 2
+            };
+        }
+
+        function checkAnswer() {
+            const userAnswer = parseFloat(document.getElementById('input').value);
+            const correctAnswer = currentProblem.result;
+            
+            if(Math.abs(userAnswer - correctAnswer) < 0.01) {
+                score += Math.round(50 * combo * level);
+                combo++;
+                spawnPowerup();
+            } else {
+                combo = 1;
+                score = Math.max(0, score - 100);
+            }
+            
+            document.getElementById('score').textContent = score;
+            document.getElementById('combo').textContent = combo + 'x';
+            document.getElementById('input').value = '';
+            updateDifficulty();
+            newProblem();
+        }
+
+        function spawnPowerup() {
+            if(Math.random() < 0.3) {
+                const powerup = document.createElement('div');
+                powerup.className = 'powerup';
+                powerup.style.left = Math.random() * 90 + '%';
+                powerup.style.top = Math.random() * 90 + '%';
+                powerup.textContent = ['+5s', '2x'][Math.floor(Math.random() * 2)];
+                powerup.onclick = () => activatePowerup(powerup.textContent);
+                document.body.appendChild(powerup);
+                powerups.push(powerup);
+            }
+        }
+
+        function activatePowerup(type) {
+            if(type === '+5s') timeLeft += 5;
+            if(type === '2x') combo *= 2;
+            powerups.forEach(p => p.remove());
+            powerups = [];
+        }
+
+        function newProblem() {
+            currentProblem = generateEquation();
+            document.getElementById('equation').textContent = currentProblem.equation + ' = ?';
+        }
+
+        function startGame() {
+            score = 0;
+            timeLeft = 60;
+            combo = 1;
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('input').disabled = false;
+            newProblem();
+            
+            clearInterval(gameInterval);
+            gameInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer').textContent = `⏳ ${timeLeft}`;
+                
+                if(timeLeft <= 0) {
+                    clearInterval(gameInterval);
+                    document.getElementById('gameOver').style.display = 'block';
+                    document.getElementById('finalScore').textContent = score;
+                    document.getElementById('input').disabled = true;
+                }
+            }, 1000);
+        }
+
+        document.getElementById('input').addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') checkAnswer();
+        });
+
+        // Start the game
+        startGame();
+    </script>
+</body>
+</html>
